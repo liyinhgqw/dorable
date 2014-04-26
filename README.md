@@ -16,6 +16,10 @@ Doracle is a distributed fault-tolerant **timestamp oracle** server. For single 
     go run cmd/drun.go -p 4002 -join localhost:4001 ./node.2     // node.1
     go run cmd/drun.go -p 4003 -join localhost:4001 ./node.3     // node.3
 ```
+When a server fails (e.g., node.2), restarted by typing
+```
+    go run cmd/drun.go -p 4002 ./node.2
+```
 
 * For help information
 ```
