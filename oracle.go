@@ -1,12 +1,12 @@
 package doracle
 
 import (
-	"sync"
+// "sync"
 )
 
 type Oracle struct {
 	maxTs int64
-	mutex sync.Mutex
+	// mutex sync.Mutex
 }
 
 func NewOracle() *Oracle {
@@ -16,8 +16,8 @@ func NewOracle() *Oracle {
 }
 
 func (o *Oracle) GetTimestamp(num int32) int64 {
-	o.mutex.Lock()
-	defer o.mutex.Unlock()
+	// o.mutex.Lock()
+	// defer o.mutex.Unlock()
 
 	o.maxTs += int64(num)
 	return o.maxTs

@@ -18,13 +18,14 @@ import (
 // The raftd server is a combination of the Raft server and an HTTP
 // server which acts as the transport.
 type Server struct {
-	name       string
-	host       string
-	port       int
-	path       string
-	orc        *Oracle
-	router     *martini.ClassicMartini
-	raftServer raft.Server
+	name         string
+	host         string
+	port         int
+	path         string
+	orc          *Oracle
+	stateMachine *DoracleStateMachine
+	router       *martini.ClassicMartini
+	raftServer   raft.Server
 }
 
 // Creates a new server.
@@ -36,6 +37,8 @@ func New(path string, host string, port int) *Server {
 		orc:    NewOracle(),
 		router: martini.Classic(),
 	}
+
+	s.stateMachine = &DoracleStateMachine{s.orc}
 
 	// Read existing name or generate a new one.
 	if b, err := ioutil.ReadFile(filepath.Join(path, "name")); err == nil {
@@ -63,9 +66,13 @@ func (s *Server) ListenAndServe(leader string) error {
 
 	// Initialize and start Raft server.
 	transporter := raft.NewHTTPTransporter("/raft", 200*time.Millisecond)
-	s.raftServer, err = raft.NewServer(s.name, s.path, transporter, nil, s.orc, "")
+	s.raftServer, err = raft.NewServer(s.name, s.path, transporter, s.stateMachine, s.orc, "")
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if err := s.raftServer.LoadSnapshot(); err != nil {
+		log.Println("load snapshot error", err)
 	}
 	transporter.Install(s.raftServer, s)
 	s.raftServer.Start()
@@ -164,6 +171,10 @@ func (s *Server) tsHandler(w http.ResponseWriter, req *http.Request) {
 	ts, err := s.raftServer.Do(NewOracleCommand(int32(num)))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := s.raftServer.TakeSnapshot(); err != nil {
+		log.Panicln("take snapshot error", err)
 	}
 
 	w.Write([]byte(strconv.FormatInt(ts.(int64), 10)))
